@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:latest 
+    container_name: pawnshop_database
+    environment:
+      POSTGRES_USER: pawnshop
+      POSTGRES_PASSWORD: pawnshop123
+      POSTGRES_DB: pawnshop
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      
+  web: 
+    build: .
+    container_name: pawnshop_web
+    command: sh -c "uvicorn main:app --reload --port=8000 --host=0.0.0.0"
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
