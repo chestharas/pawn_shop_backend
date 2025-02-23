@@ -2,3 +2,5 @@
 __pycache__
 fastapi-env
 .idea
+
+api.zip
