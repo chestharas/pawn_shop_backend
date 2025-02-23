@@ -78,7 +78,6 @@ def get_client_order(
     staff.is_staff(current_user)
     return staff.get_client_order(db, phone_number, cus_name, cus_id)
 
-
 """ Manage Pawn and Payment """ 
 @router.post("/pawn", response_model = ResponseModel)
 def create_pawn(pawn_info: CreatePawn, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
@@ -97,6 +96,12 @@ def get_order_by_id(order_id: Optional[int] = None, db: Session = Depends(get_db
     """
     return staff.get_order_by_id(db, order_id)
 
+@router.get("/pawn/print", response_model=ResponseModel)
+def get_pawn_by_id(pawn_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Retrieve all orders or a specific order by ID along with customer details.
+    """
+    return staff.get_pawn_by_id(db, pawn_id)
 
 """Delete product by ID"""
 @router.delete("/products/{product_id}")
@@ -277,8 +282,6 @@ def get_next_pawn_id(
         message="Next pawn ID retrieved successfully",
         result=response["result"]
     )
-    
-    
     
 
 @router.put("/product", response_model=ResponseModel)

@@ -12,12 +12,6 @@ class BuyProducts(BaseModel):
     product_labor_cost: Optional[float] = None
     product_buy_price: Optional[float] = None
 
-# class PawnProducts(BaseModel):
-#     prod_name: Optional[str] = None
-#     pawn_weight: Optional[str] = None
-#     pawn_amount: Optional[int] = None
-#     pawn_unit_price: Optional[float] = None
-    
 class CreateClient(BaseModel):
     cus_name: str
     address: str

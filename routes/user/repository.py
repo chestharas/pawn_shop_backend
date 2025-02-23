@@ -62,7 +62,7 @@ class Staff:
         if existing_product:
             raise HTTPException(
                 status_code=400,
-                detail="Product already exists",
+                detail="ផលិតផលមានរួចហើយ",
             )
             
         if product_info.amount != None and product_info.unit_price != None:
@@ -166,7 +166,7 @@ class Staff:
         return ResponseModel(
             code=200,
             status="Success",
-            message="Order created successfully"
+            message="ផលិតផលរក្សាទុកបានជោគជ័យ"
         )
 
           
@@ -383,7 +383,7 @@ class Staff:
             status="Success",
             result=clients
         )
-        
+
     def get_order_by_id(self, db: Session, order_id: Optional[int] = None):
         """
         Retrieve all orders or a specific order by ID along with customer details.
@@ -444,7 +444,8 @@ class Staff:
             order_list[cus_id]["orders"].append({
                 "order_id": order[4],
                 "order_deposit": order[5],
-                "order_date": str(order[6]),  # Convert date to string format
+                #  %H:%M:%S
+                "order_date": order[6].strftime("%Y-%m-%d"),
                 "product": {
                     "prod_id": order[7],
                     "prod_name": order[8],
@@ -854,6 +855,87 @@ class Staff:
         ]
         
         
+    def get_pawn_by_id(self, db: Session, pawn_id: Optional[int] = None):
+        """
+        Retrieve all pawn records or a specific pawn by ID along with customer and product details.
+        """
+        # Query to fetch all pawn records (or filter by pawn_id if provided)
+        pawn_query = (
+            db.query(
+                Account.cus_id,
+                Account.cus_name,
+                Account.phone_number,
+                Account.address,
+                Pawn.pawn_id,
+                Pawn.pawn_deposit,
+                Pawn.pawn_date,
+                Pawn.pawn_expire_date,
+                Product.prod_id,
+                Product.prod_name,
+                PawnDetail.pawn_weight,
+                PawnDetail.pawn_amount,
+                PawnDetail.pawn_unit_price,
+            )
+            .join(Pawn, Account.cus_id == Pawn.cus_id)
+            .join(PawnDetail, Pawn.pawn_id == PawnDetail.pawn_id)
+            .join(Product, PawnDetail.prod_id == Product.prod_id)
+            .filter(Account.role == "user")
+        )
+
+        # If pawn_id is provided, filter the query
+        if pawn_id:
+            pawn_query = pawn_query.filter(Pawn.pawn_id == pawn_id)
+
+        pawns = pawn_query.all()
+
+        # If no pawn records found, return a 404 response
+        if not pawns:
+            return ResponseModel(
+                code=404,
+                status="Error",
+                message=f"No pawn record found for pawn ID {pawn_id}." if pawn_id else "No pawn records found.",
+                result=[]
+            )
+
+        # Structure the response
+        pawn_list = {}
+        for pawn in pawns:
+            cus_id = pawn[0]  # Account.cus_id
+
+            if cus_id not in pawn_list:
+                pawn_list[cus_id] = {
+                    "cus_id": cus_id,
+                    "customer_name": pawn[1],
+                    "phone_number": pawn[2],
+                    "address": pawn[3],
+                    "pawns": []
+                }
+
+            # Add pawn details for the customer
+            pawn_list[cus_id]["pawns"].append({
+                "pawn_id": pawn[4],
+                "pawn_deposit": pawn[5],
+                "pawn_date": pawn[6].strftime("%Y-%m-%d"),
+                "pawn_expire_date": str(pawn[7]),
+                "products": [
+                    {
+                        "prod_id": pawn[8],
+                        "prod_name": pawn[9],
+                        "pawn_weight": pawn[10],
+                        "pawn_amount": pawn[11],
+                        "pawn_unit_price": pawn[12],
+                        # "pawn_deposit": pawn[5],  
+                    }
+                ]
+            })
+
+        # Return a successful response
+        return ResponseModel(
+            code=200,
+            status="Success",
+            result=list(pawn_list.values())  # Convert dict to list
+        )
+
         
 # ================================Get next ID family===============================================================================
 # =================================================================================================================================
