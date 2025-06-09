@@ -9,85 +9,14 @@ from routes.user.repository import Staff
 from routes.user.model import *
 # from routes.user.model import CreatePawn 
 
-
 router = APIRouter(
-    tags=["Staff"],
-    prefix="/staff"
+    tags=["Other"],
+    prefix="/noe"
 )
 
 staff = Staff()
 staff_service = Staff()
 
-""" Manage Client """
-@router.post("/client", response_model=ResponseModel)
-def create_client(client_info: CreateClient, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.create_client(client_info, db)
-
-@router.get("/client", response_model=ResponseModel[List[GetClient]])
-def get_all_client(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.get_client(db)
-
-""" Manage Product """
-@router.post("/product", response_model = ResponseModel)
-def create_product(product_info: CreateProduct, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.create_product(product_info, db, current_user)
-
-@router.get("/product", response_model=ResponseModel)
-def get_all_product(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.get_product(db=db)
-
-
-""" Order and Payment """
-@router.get("/order/client_phone", response_model=ResponseModel)
-def get_order_account(
-    phone_number: str,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)  # Ensure only staff can access this
-    customer_details = staff.get_order_account(db, phone_number)
-
-    if not customer_details:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    return ResponseModel(
-        code=200,
-        status="Success",
-        result=customer_details
-    )
-
-
-
-@router.post("/order", response_model = ResponseModel)
-def create_order(order_info: CreateOrder, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.create_order(order_info, db, current_user)
-
-@router.get("/order", response_model=ResponseModel)
-def get_client_order(
-    phone_number: Optional[str] = None,
-    cus_name: Optional[str] = None,
-    cus_id: Optional[int] = None,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)
-    return staff.get_client_order(db, phone_number, cus_name, cus_id)
-
-""" Manage Pawn and Payment """ 
-@router.post("/pawn", response_model = ResponseModel)
-def create_pawn(pawn_info: CreatePawn, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.create_pawn(pawn_info, db, current_user)
-
-@router.get("/pawn", response_model=ResponseModel)
-def get_pawn_by_id(cus_id: Optional[int] = None, cus_name: Optional[str] = None, phone_number: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.get_client_pawn(db, cus_id, cus_name, phone_number)
 
 @router.get("/orders/print", response_model=ResponseModel)
 def get_order_by_id(order_id: Optional[int] = None, db: Session = Depends(get_db)):

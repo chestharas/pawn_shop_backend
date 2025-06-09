@@ -2,6 +2,10 @@ from fastapi import FastAPI
 import entities
 from database import engine
 import routes.oauth2.controller as authController
+import routes.product.controller as productController
+import routes.orderClient.controller as orderClientController
+import routes.order.controller as orderController
+import routes.pawn.controller as pawncontroller
 import routes.user.controller as userController
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,6 +16,10 @@ app = FastAPI(
 )
 
 app.include_router(authController.router)
+app.include_router(productController.router)
+app.include_router(orderClientController.router)
+app.include_router(orderController.router)
+app.include_router(pawncontroller.router)
 app.include_router(userController.router)
 
 entities.Base.metadata.create_all(engine)
