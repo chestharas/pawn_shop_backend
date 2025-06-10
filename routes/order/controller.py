@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from response_model import ResponseModel
 from routes.oauth2.repository import get_current_user
-from routes.user.repository import Staff
-from routes.user.model import *
+from routes.order.repository import Staff
+from routes.order.model import *
 
 router = APIRouter(
     tags=["Order"],
@@ -16,23 +16,23 @@ staff = Staff()
 staff_service = Staff()
 
 """ Order and Payment """
-@router.get("/order/client_phone", response_model=ResponseModel)
-def get_order_account(
-    phone_number: str,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)  # Ensure only staff can access this
-    customer_details = staff.get_order_account(db, phone_number)
+# @router.get("/order/client_phone", response_model=ResponseModel)
+# def get_order_account(
+#     phone_number: str,
+#     db: Session = Depends(get_db),
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     staff.is_staff(current_user)  # Ensure only staff can access this
+#     customer_details = staff.get_order_account(db, phone_number)
 
-    if not customer_details:
-        raise HTTPException(status_code=404, detail="Customer not found")
+#     if not customer_details:
+#         raise HTTPException(status_code=404, detail="Customer not found")
 
-    return ResponseModel(
-        code=200,
-        status="Success",
-        result=customer_details
-    )
+#     return ResponseModel(
+#         code=200,
+#         status="Success",
+#         result=customer_details
+#     )
 
 @router.post("/order", response_model = ResponseModel)
 def create_order(order_info: CreateOrder, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):

@@ -97,39 +97,46 @@ class Staff:
             status="Success",
             message="ផលិតផលរក្សាទុកបានជោគជ័យ"
         )
-
-    def get_order_account(
-        self,
-        db: Session,
-        phone_number: Optional[str] = None,
-    ):
-        orders = (
-            db.query(
-                Account.cus_name,
-                Account.cus_id,
-                Account.address
+        
+    def create_client(self, client_info: CreateClient, db: Session, not_exist: bool = False):
+        existing_client = db.query(Account).filter(Account.phone_number == client_info.phone_number).first()
+        if existing_client:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone Number already registered",
             )
-            .filter(
-                and_(
-                    Account.phone_number == phone_number,
-                    Account.role == "user",
-                )
-            )
-            .all()
+        
+        if not_exist:
+            try:
+                client = Account(
+                    cus_name = client_info.cus_name, 
+                    address = client_info.address,
+                    phone_number = client_info.phone_number,)
+                db.add(client)
+                db.commit()
+                db.refresh(client)
+            except SQLAlchemyError as e:
+                db.rollback()
+                print(f"Error occurred: {str(e)}")
+                raise HTTPException(status_code=500, detail="Database error occurred.")
+            
+            return client
+            
+        client = Account(
+            cus_name = client_info.cus_name, 
+            address = client_info.address,
+            phone_number = client_info.phone_number,)
+        
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+        
+        return ResponseModel(
+            code=200,
+            status="Success",
+            message="Client created successfully"
         )
-
-        result = [
-            {
-                "cus_name": order.cus_name,
-                "customer_id": order.cus_id,
-                "address": order.address
-            }
-            for order in orders
-        ]
-
-        return result
-
-
+        
     def get_product(self, db: Session):
         products = db.query(Product).all()
         if not products:
@@ -152,6 +159,39 @@ class Staff:
             result=serialized_products
         )
 
+    def create_product(self, product_info: CreateProduct, db: Session, current_user: dict):
+            existing_product = db.query(Product).filter(Product.prod_name == func.lower(product_info.prod_name)).first()
+            if existing_product:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ផលិតផលមានរួចហើយ",
+                )
+                
+            if product_info.amount != None and product_info.unit_price != None:
+                product = Product(
+                    prod_name = func.lower(product_info.prod_name),
+                    unit_price = product_info.unit_price,
+                    amount = product_info.amount,
+                    user_id = current_user['id'])
+                db.add(product)
+                db.commit()
+                db.refresh(product)
+                
+            else: 
+                product = Product(prod_name = func.lower(product_info.prod_name), user_id = current_user['id'])
+                db.add(product)
+                db.commit()
+                db.refresh(product)
+                return product
+            
+            
+            return ResponseModel(
+                code=200,
+                status="Success",
+                message="ការបញ្ជាទិញត្រូវបានជោគជ័យ"
+            )
+            
+            
     def get_order_by_id(self, db: Session, order_id: Optional[int] = None):
         """
         Retrieve all orders or a specific order by ID along with customer details.

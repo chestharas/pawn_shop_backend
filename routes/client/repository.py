@@ -64,3 +64,13 @@ class Staff:
             status="Success",
             result=clients
         )
+        
+    def get_client_phone(self, phone_number: str, db: Session):
+        client = db.query(Account).filter(Account.phone_number == phone_number).all()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        return ResponseModel(
+            code=200,
+            status="Success",
+            result=client
+        )

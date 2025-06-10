@@ -105,3 +105,74 @@ class Staff:
                 status="Success",
                 message=f"Pawn record created successfully with multiple products. (Pawn ID: {pawn.pawn_id})"
             )
+
+    def create_client(self, client_info: CreateClient, db: Session, not_exist: bool = False):
+        existing_client = db.query(Account).filter(Account.phone_number == client_info.phone_number).first()
+        if existing_client:
+            raise HTTPException(
+                status_code=400,
+                detail="Phone Number already registered",
+            )
+        
+        if not_exist:
+            try:
+                client = Account(
+                    cus_name = client_info.cus_name, 
+                    address = client_info.address,
+                    phone_number = client_info.phone_number,)
+                db.add(client)
+                db.commit()
+                db.refresh(client)
+            except SQLAlchemyError as e:
+                db.rollback()
+                print(f"Error occurred: {str(e)}")
+                raise HTTPException(status_code=500, detail="Database error occurred.")
+            
+            return client
+            
+        client = Account(
+            cus_name = client_info.cus_name, 
+            address = client_info.address,
+            phone_number = client_info.phone_number,)
+        
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+        
+        return ResponseModel(
+            code=200,
+            status="Success",
+            message="Client created successfully"
+        )
+        
+    def create_product(self, product_info: CreateProduct, db: Session, current_user: dict):
+            existing_product = db.query(Product).filter(Product.prod_name == func.lower(product_info.prod_name)).first()
+            if existing_product:
+                raise HTTPException(
+                    status_code=400,
+                    detail="ផលិតផលមានរួចហើយ",
+                )
+                
+            if product_info.amount != None and product_info.unit_price != None:
+                product = Product(
+                    prod_name = func.lower(product_info.prod_name),
+                    unit_price = product_info.unit_price,
+                    amount = product_info.amount,
+                    user_id = current_user['id'])
+                db.add(product)
+                db.commit()
+                db.refresh(product)
+                
+            else: 
+                product = Product(prod_name = func.lower(product_info.prod_name), user_id = current_user['id'])
+                db.add(product)
+                db.commit()
+                db.refresh(product)
+                return product
+            
+            
+            return ResponseModel(
+                code=200,
+                status="Success",
+                message="ការបញ្ជាទិញត្រូវបានជោគជ័យ"
+            )
