@@ -5,12 +5,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 from response_model import ResponseModel
 from routes.oauth2.repository import get_current_user
-from routes.user.repository import Staff
-from routes.user.model import *
+from routes.pawn.repository import Staff
+from routes.pawn.model import *
 # from routes.user.model import CreatePawn 
 
 router = APIRouter(
-    tags=["pawn"],
+    tags=["Pawn"],
     prefix="/api"
 )
 
