@@ -11,7 +11,7 @@ class BuyProducts(BaseModel):
     product_sell_price: Optional[float] = None
     product_labor_cost: Optional[float] = None
     product_buy_price: Optional[float] = None
-
+    
 class CreateClient(BaseModel):
     cus_name: str
     address: str
@@ -75,3 +75,4 @@ class UpdatePawn(BaseModel):
     # products: List[PawnProducts] = []
     deleteOldProducts: Optional[bool] = False 
     
+
