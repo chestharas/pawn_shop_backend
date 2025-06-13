@@ -176,3 +176,131 @@ class Staff:
                 status="Success",
                 message="ការបញ្ជាទិញត្រូវបានជោគជ័យ"
             )
+            
+    def get_client_pawn(self, db: Session, cus_id: Optional[int] = None, cus_name: Optional[str] = None, phone_number: Optional[str] = None):
+        client = db.query(Account).filter(
+            and_(
+                or_(
+                    Account.cus_id == cus_id,
+                    Account.phone_number == phone_number,
+                    func.lower(Account.cus_name) == func.lower(cus_name)
+                    ), 
+                Account.role == 'user'
+                )
+            ).first()
+        if not client:
+            raise HTTPException(
+                status_code=404,
+                detail="Client not found",
+            )
+            
+        get_detail_pawn = self.get_pawn_detail(db=db, cus_id=client.cus_id)
+        if len(get_detail_pawn) <= 0:
+            return ResponseModel(
+                code=200,
+                status="Success",
+                message="Pawns not found",
+                result=get_detail_pawn
+            )
+        
+        return ResponseModel(
+            code=200,
+            status="Success",
+            result=get_detail_pawn
+        )
+        
+    def get_pawn_detail(
+        self,
+        db: Session,
+        cus_id: Optional[int] = None,
+        phone_number: Optional[str] = None,
+        cus_name: Optional[str] = None,
+    ):
+        # Build filter conditions dynamically - only add conditions for non-None parameters
+        search_conditions = []
+        
+        if cus_id is not None:
+            search_conditions.append(Pawn.cus_id == cus_id)
+        
+        if phone_number is not None and phone_number.strip():
+            search_conditions.append(Account.phone_number == phone_number.strip())
+            
+        if cus_name is not None and cus_name.strip():
+            search_conditions.append(func.lower(Account.cus_name) == func.lower(cus_name.strip()))
+        
+        # If no search parameters provided, return empty result
+        if not search_conditions:
+            return []
+        
+        pawns = (
+            db.query(
+                Account.cus_id,  # 0
+                Account.cus_name, # 1
+                Account.phone_number, # 2
+                Account.address, # 3
+                Pawn.pawn_id, # 4
+                Pawn.pawn_deposit, # 5
+                Pawn.pawn_date, # 6
+                Pawn.pawn_expire_date, # 7
+                Product.prod_id, # 8
+                Product.prod_name, # 9
+                PawnDetail.pawn_weight, # 10
+                PawnDetail.pawn_amount, # 11
+                PawnDetail.pawn_unit_price, # 12
+            )
+            .select_from(Account)
+            .join(Pawn, Account.cus_id == Pawn.cus_id)
+            .join(PawnDetail, Pawn.pawn_id == PawnDetail.pawn_id)
+            .join(Product, PawnDetail.prod_id == Product.prod_id)
+            .filter(
+                and_(
+                    or_(*search_conditions),  # Only include non-None conditions
+                    Account.role == "user",
+                )
+            )
+            .all()
+        )
+
+        grouped_pawns = defaultdict(lambda: {
+            "pawn_id": None,
+            "cus_id": None,
+            "customer_name": "",
+            "phone_number": "",
+            "address": "",
+            "pawn_deposit": 0,
+            "pawn_date": "",
+            "pawn_expire_date": "",
+            "products": [],
+        })
+
+        for pawn in pawns:
+            pawn_id = pawn[4]
+            if grouped_pawns[pawn_id]["pawn_id"] is None:
+                grouped_pawns[pawn_id].update({
+                    "pawn_id": pawn[4],
+                    "cus_id": pawn[0],
+                    "customer_name": pawn[1],
+                    "phone_number": pawn[2],
+                    "address": pawn[3],
+                    "pawn_deposit": float(pawn[5]) if pawn[5] else 0,  # Handle potential None
+                    "pawn_date": str(pawn[6]) if pawn[6] else "",  # Convert date to string
+                    "pawn_expire_date": str(pawn[7]) if pawn[7] else "",  # Convert date to string
+                })
+
+            product = {
+                "prod_id": pawn[8],
+                "prod_name": pawn[9],
+                "pawn_weight": pawn[10] or "",  # Handle potential None
+                "pawn_amount": pawn[11] or 0,   # Handle potential None
+                "pawn_unit_price": float(pawn[12]) if pawn[12] else 0,  # Handle potential None
+            }
+
+            # Check if product already exists before appending
+            product_exists = any(
+                p["prod_id"] == product["prod_id"] 
+                for p in grouped_pawns[pawn_id]["products"]
+            )
+            if not product_exists:
+                grouped_pawns[pawn_id]["products"].append(product)
+
+        return list(grouped_pawns.values())
