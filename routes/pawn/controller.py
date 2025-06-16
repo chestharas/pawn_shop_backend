@@ -47,3 +47,31 @@ def get_pawn_by_id(
         message="Pawn details retrieved successfully",
         result=result
     )
+    
+@router.get("/pawn/all_client", response_model=ResponseModel)
+def get_all_client_pawn(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_all_client_pawn(db)
+
+@router.get("/pawn/client/{cus_id}", response_model=ResponseModel)
+def get_client_id(
+    cus_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_client_id(cus_id, db)
+
+@router.get("/pawn/search", response_model=ResponseModel)
+def get_client_pawn(
+    phone_number: Optional[str] = None,
+    cus_name: Optional[str] = None,
+    cus_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_client_pawn(db, phone_number, cus_name, cus_id)

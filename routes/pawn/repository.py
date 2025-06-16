@@ -177,32 +177,40 @@ class Staff:
                 message="ការបញ្ជាទិញត្រូវបានជោគជ័យ"
             )
             
-    def get_client_pawn(self, db: Session, cus_id: Optional[int] = None, cus_name: Optional[str] = None, phone_number: Optional[str] = None):
-        client = db.query(Account).filter(
-            and_(
-                or_(
-                    Account.cus_id == cus_id,
-                    Account.phone_number == phone_number,
-                    func.lower(Account.cus_name) == func.lower(cus_name)
-                    ), 
-                Account.role == 'user'
-                )
-            ).first()
-        if not client:
+    def get_client_pawn(self, db: Session, phone_number: Optional[str] = None, cus_name: Optional[str] = None, cus_id: Optional[int] = None):
+        # Build dynamic filters based on provided parameters
+        filters = [Account.role == 'user']
+
+        if phone_number:
+            filters.append(Account.phone_number == phone_number)
+        if cus_name:
+            filters.append(func.lower(Account.cus_name) == func.lower(cus_name))  # Case-insensitive search
+        if cus_id:
+            filters.append(Account.cus_id == cus_id)
+
+        # Fetch ALL customers matching the search criteria
+        clients = db.query(Account.cus_id, Account.cus_name).filter(and_(*filters)).all()
+
+        if not clients:
             raise HTTPException(
                 status_code=404,
                 detail="Client not found",
             )
-            
-        get_detail_pawn = self.get_pawn_detail(db=db, cus_id=client.cus_id)
-        if len(get_detail_pawn) <= 0:
+
+        # Extract customer IDs and names from query result
+        cus_id = [client.cus_id for client in clients]
+
+        # Fetch all pawns related to those customer IDs
+        get_detail_pawn = self.get_pawn_detail(db=db, cus_id=cus_id)  # Pass list of `cus_id`s
+
+        if not get_detail_pawn:
             return ResponseModel(
                 code=200,
                 status="Success",
                 message="Pawns not found",
-                result=get_detail_pawn
+                result=[]
             )
-        
+
         return ResponseModel(
             code=200,
             status="Success",
@@ -212,7 +220,7 @@ class Staff:
     def get_pawn_detail(
         self,
         db: Session,
-        cus_id: Optional[int] = None,
+        cus_id: Optional[int] = None,  # Accept both int and list
         phone_number: Optional[str] = None,
         cus_name: Optional[str] = None,
     ):
@@ -220,7 +228,12 @@ class Staff:
         search_conditions = []
         
         if cus_id is not None:
-            search_conditions.append(Pawn.cus_id == cus_id)
+            # Handle both single integer and list of integers
+            if isinstance(cus_id, list):
+                if cus_id:  # Check if list is not empty
+                    search_conditions.append(Pawn.cus_id.in_(cus_id))
+            else:
+                search_conditions.append(Pawn.cus_id == cus_id)
         
         if phone_number is not None and phone_number.strip():
             search_conditions.append(Account.phone_number == phone_number.strip())
@@ -304,3 +317,111 @@ class Staff:
                 grouped_pawns[pawn_id]["products"].append(product)
 
         return list(grouped_pawns.values())
+    
+    def get_all_client_pawn(self, db: Session):
+        clients_with_pawns = db.query(
+            Account.cus_id,
+            Account.cus_name, 
+            Account.address,
+            Account.phone_number
+        ).join(
+            Pawn, Account.cus_id == Pawn.cus_id  # Changed from 'pawn' to 'Pawn'
+        ).filter(
+            Account.role == 'user'
+        ).distinct().all()  # Use distinct to avoid duplicates
+
+        if not clients_with_pawns:
+            return ResponseModel(
+                code=404,
+                status="Not Found",
+                message="No clients with pawns found",
+                result=[]
+            )
+
+        # Convert to list of dictionaries
+        clients_data = []
+        for client in clients_with_pawns:
+            clients_data.append({
+                "cus_id": client.cus_id,
+                "cus_name": client.cus_name,
+                "address": client.address,
+                "phone_number": client.phone_number
+            })
+
+        return ResponseModel(
+            code=200,
+            status="Success",
+            result=clients_data
+        )
+        
+    def get_client_id(self, cus_id: int, db: Session):
+        # First check if client exists
+        client = db.query(Account).filter(
+            and_(
+                Account.cus_id == cus_id,
+                Account.role == 'user'
+            )
+        ).first()
+        
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Get client's pawn details
+        pawns = db.query(
+            Pawn.pawn_id,           
+            Pawn.pawn_deposit,      
+            Pawn.pawn_date,         
+            Product.prod_name,
+            Product.prod_id,
+            PawnDetail.pawn_weight,      
+            PawnDetail.pawn_amount,      
+            PawnDetail.pawn_unit_price,  
+        ).join(PawnDetail, Pawn.pawn_id == PawnDetail.pawn_id)\
+        .join(Product, PawnDetail.prod_id == Product.prod_id)\
+        .filter(Pawn.cus_id == cus_id)\
+        .all()
+        
+        # Group pawns by pawn_id
+        grouped_pawns = defaultdict(lambda: {
+            "pawn_id": None,
+            "pawn_deposit": 0,
+            "pawn_date": "",
+            "products": [],
+        })
+
+        for pawn in pawns:
+            pawn_id = pawn[0]
+
+            if grouped_pawns[pawn_id]["pawn_id"] is None:
+                grouped_pawns[pawn_id]["pawn_id"] = pawn_id
+                grouped_pawns[pawn_id]["pawn_deposit"] = pawn[1]
+                grouped_pawns[pawn_id]["pawn_date"] = pawn[2].strftime("%Y-%m-%d") if pawn[2] else ""
+
+            product = {
+                "prod_name": pawn[3],
+                "prod_id": pawn[4],
+                "pawn_weight": pawn[5],     
+                "pawn_amount": pawn[6],     
+                "pawn_unit_price": pawn[7], 
+                
+            }
+
+            grouped_pawns[pawn_id]["products"].append(product)
+
+        # Return the complete client and pawn information
+        result = {
+            "client_info": {
+                "cus_id": client.cus_id,
+                "cus_name": client.cus_name,
+                "address": client.address,
+                "phone_number": client.phone_number
+            },
+            "pawns": list(grouped_pawns.values()) if grouped_pawns else [],  # Changed from pawns
+            "total_pawns": len(grouped_pawns) 
+        }
+
+        return ResponseModel(
+            code=200,
+            status="Success",
+            result=result
+        )

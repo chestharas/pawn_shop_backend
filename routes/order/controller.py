@@ -41,6 +41,50 @@ def create_order(order_info: CreateOrder, db: Session = Depends(get_db), current
 
 @router.get("/order", response_model=ResponseModel)
 def get_client_order(
+    # phone_number: Optional[str] = None,
+    # cus_name: Optional[str] = None,
+    # cus_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_client_order(db)
+
+# @router.get("/order", response_model=ResponseModel)
+# def get_client_order(
+#     phone_number: Optional[str] = None,
+#     cus_name: Optional[str] = None,
+#     cus_id: Optional[int] = None,
+#     db: Session = Depends(get_db),
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     staff.is_staff(current_user)
+#     return staff.get_client_order(db, phone_number, cus_name, cus_id)
+
+# @router.get("/order", response_model=ResponseModel)
+# def get_client_order_info(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+#     staff.is_staff(current_user)
+#     return staff.get_customers_with_orders(db)
+
+@router.get("/order/all_client", response_model=ResponseModel)
+def get_all_client_order(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_all_client_order(db)
+
+@router.get("/order/client/{cus_id}", response_model=ResponseModel)
+def get_client_id(
+    cus_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_client_id(cus_id, db)
+
+@router.get("/order/search", response_model=ResponseModel)
+def get_client_order(
     phone_number: Optional[str] = None,
     cus_name: Optional[str] = None,
     cus_id: Optional[int] = None,
@@ -49,17 +93,3 @@ def get_client_order(
 ):
     staff.is_staff(current_user)
     return staff.get_client_order(db, phone_number, cus_name, cus_id)
-
-@router.get("/client/order", response_model=ResponseModel)
-def get_client_order_info(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    staff.is_staff(current_user)
-    return staff.get_customers_with_orders(db)
-
-@router.get("/client/order/{cus_id}", response_model=ResponseModel)
-def get_client_by_id(
-    cus_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)
-    return staff.get_client_order_id(db, cus_id)
