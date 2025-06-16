@@ -67,8 +67,16 @@ class Staff:
         
     def get_client_phone(self, phone_number: str, db: Session):
         client = db.query(Account).filter(Account.phone_number == phone_number).all()
+        
         if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
+            # Return a structured response instead of raising an exception
+            return ResponseModel(
+                code=404,
+                status="Not Found",
+                result=[],
+                message="Client not found"
+            )
+        
         return ResponseModel(
             code=200,
             status="Success",
