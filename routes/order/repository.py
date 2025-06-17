@@ -150,35 +150,39 @@ class Staff:
         if cus_id:
             filters.append(Account.cus_id == cus_id)
 
-        # Fetch ALL customers matching the search criteria
-        clients = db.query(Account.cus_id, Account.cus_name).filter(and_(*filters)).all()
+        # Fetch ALL customers matching the search criteria with all required fields
+        clients = db.query(
+            Account.cus_id, 
+            Account.cus_name, 
+            Account.phone_number, 
+            Account.address
+        ).filter(and_(*filters)).all()
 
         if not clients:
-            raise HTTPException(
-                status_code=404,
-                detail="Client not found",
-            )
-
-        # Extract customer IDs and names from query result
-        cus_ids = [client.cus_id for client in clients]
-
-        # Fetch all orders related to those customer IDs
-        get_detail_order = self.get_order_detail(db=db, cus_ids=cus_ids)  # Pass list of `cus_id`s
-
-        if not get_detail_order:
             return ResponseModel(
-                code=200,
-                status="Success",
-                message="Orders not found",
+                code=404,
+                status="Error",
+                message="Client not found",
                 result=[]
             )
+
+        # Convert to list of dictionaries for better JSON response
+        clients_data = []
+        for client in clients:
+            clients_data.append({
+                "cus_id": client.cus_id,
+                "cus_name": client.cus_name,
+                "phone_number": client.phone_number,
+                "address": client.address
+            })
 
         return ResponseModel(
             code=200,
             status="Success",
-            result=get_detail_order
+            message=f"Found {len(clients_data)} client(s)",
+            result=clients_data
         )
-    
+        
     def get_order_account(
         self,
         db: Session,
