@@ -18,6 +18,21 @@ staff = Staff()
 staff_service = Staff()
 
 """ Manage Pawn and Payment """ 
+@router.get("/pawn", response_model=ResponseModel)
+def get_pawn_by_id(
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    result = staff.get_all_pawn_details(db)  # Use the new method
+    
+    return ResponseModel(
+        code=200,
+        status="success", 
+        message="Pawn details retrieved successfully",
+        result=result
+    )
+
 @router.post("/pawn", response_model = ResponseModel)
 def create_pawn(pawn_info: CreatePawn, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     staff.is_staff(current_user)
@@ -30,24 +45,6 @@ def create_pawn(pawn_info: CreatePawn, db: Session = Depends(get_db), current_us
 #     # return staff.get_client_pawn(db, cus_id, cus_name, phone_number)
 
 
-@router.get("/client/pawn", response_model=ResponseModel)
-def get_pawn_by_id(
-    cus_id: Optional[int] = None, 
-    phone_number: Optional[str] = None,  # Move this before cus_name
-    cus_name: Optional[str] = None, 
-    db: Session = Depends(get_db), 
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)
-    result = staff.get_pawn_detail(db, cus_id, phone_number, cus_name)  # Match the order
-    
-    return ResponseModel(
-        code=200,
-        status="success", 
-        message="Pawn details retrieved successfully",
-        result=result
-    )
-    
 @router.get("/pawn/all_client", response_model=ResponseModel)
 def get_all_client_pawn(
     db: Session = Depends(get_db),
