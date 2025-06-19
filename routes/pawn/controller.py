@@ -72,3 +72,28 @@ def get_client_pawn(
 ):
     staff.is_staff(current_user)
     return staff.get_client_pawn(db, phone_number, cus_name, cus_id)
+
+@router.get("/pawn/next-id", response_model=ResponseModel)
+def get_next_pawn_id(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_next_pawn_id(db)
+
+@router.get("/pawn/last", response_model=ResponseModel)
+def get_last_pawns(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_last_pawns(db)
+
+@router.get("/pawn/{pawn_id}/print", response_model=ResponseModel)
+def print_pawn(
+    pawn_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.print_pawn(pawn_id, db)

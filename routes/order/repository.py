@@ -428,3 +428,216 @@ class Staff:
             status="Success",
             result=result
         )
+    def get_next_order_id(self, db: Session):
+        try:
+            # Get the highest order_id from the database
+            max_order = db.query(func.max(Order.order_id)).scalar()
+            
+            # If no orders exist, start with 1, otherwise increment by 1
+            next_id = 1 if max_order is None else max_order + 1
+            
+            return ResponseModel(
+                code=200,
+                status="Success",
+                result={"next_order_id": next_id}
+            )
+        except Exception as e:
+            return ResponseModel(
+                code=500,
+                status="Error",
+                message=f"Failed to get next order ID: {str(e)}"
+            )
+            
+    def get_last_order(self, db: Session):
+        """Get the last 3 most recently created orders with all details"""
+        try:
+            # Get the last 3 orders (highest order_ids)
+            last_orders = db.query(Order).order_by(Order.order_id.desc()).limit(3).all()
+            
+            if not last_orders:
+                return ResponseModel(
+                    code=404,
+                    status="Not Found",
+                    message="No orders found",
+                    result=[]
+                )
+            
+            orders_result = []
+            
+            for order in last_orders:
+                # Get client information for each order
+                client = db.query(Account).filter(
+                    and_(
+                        Account.cus_id == order.cus_id,
+                        Account.role == 'user'
+                    )
+                ).first()
+                
+                # Get order details with products for each order
+                order_details = db.query(
+                    OrderDetail.order_weight,
+                    OrderDetail.order_amount,
+                    OrderDetail.product_sell_price,
+                    OrderDetail.product_labor_cost,
+                    OrderDetail.product_buy_price,
+                    Product.prod_name,
+                    Product.prod_id
+                ).join(Product, OrderDetail.prod_id == Product.prod_id)\
+                .filter(OrderDetail.order_id == order.order_id)\
+                .all()
+                
+                # Format products data for each order
+                products = []
+                total_amount = 0
+                for detail in order_details:
+                    product = {
+                        "prod_name": detail.prod_name,
+                        "prod_id": detail.prod_id,
+                        "order_weight": detail.order_weight,
+                        "order_amount": detail.order_amount,
+                        "product_sell_price": detail.product_sell_price,
+                        "product_labor_cost": detail.product_labor_cost,
+                        "product_buy_price": detail.product_buy_price,
+                        "subtotal": detail.order_amount * detail.product_sell_price
+                    }
+                    products.append(product)
+                    total_amount += product["subtotal"]
+                
+                # Prepare each order's data
+                order_data = {
+                    "order_info": {
+                        "order_id": order.order_id,
+                        "order_date": order.order_date.strftime("%Y-%m-%d %H:%M:%S") if order.order_date else "",
+                        "order_deposit": order.order_deposit,
+                        "total_amount": total_amount,
+                        "remaining_balance": total_amount - order.order_deposit
+                    },
+                    "client_info": {
+                        "cus_id": client.cus_id,
+                        "cus_name": client.cus_name,
+                        "address": client.address,
+                        "phone_number": client.phone_number
+                    } if client else None,
+                    "products": products,
+                    "summary": {
+                        "total_products": len(products),
+                        "total_amount": total_amount,
+                        "deposit_paid": order.order_deposit,
+                        "balance_due": total_amount - order.order_deposit
+                    }
+                }
+                
+                orders_result.append(order_data)
+            
+            return ResponseModel(
+                code=200,
+                status="Success",
+                message=f"Last {len(orders_result)} orders retrieved successfully",
+                result=orders_result
+            )
+            
+        except Exception as e:
+            return ResponseModel(
+                code=500,
+                status="Error",
+                message=f"Failed to retrieve last orders: {str(e)}"
+            )
+
+    def print_order(self, order_id: int, db: Session):
+        """Get order details formatted for printing (receipt/invoice format)"""
+        try:
+            # Get order information
+            order = db.query(Order).filter(Order.order_id == order_id).first()
+            
+            if not order:
+                return ResponseModel(
+                    code=404,
+                    status="Not Found",
+                    message="Order not found"
+                )
+            
+            # Get client information
+            client = db.query(Account).filter(
+                and_(
+                    Account.cus_id == order.cus_id,
+                    Account.role == 'user'
+                )
+            ).first()
+            
+            # Get order details
+            order_details = db.query(
+                OrderDetail.order_weight,
+                OrderDetail.order_amount,
+                OrderDetail.product_sell_price,
+                OrderDetail.product_labor_cost,
+                OrderDetail.product_buy_price,
+                Product.prod_name,
+                Product.prod_id
+            ).join(Product, OrderDetail.prod_id == Product.prod_id)\
+            .filter(OrderDetail.order_id == order_id)\
+            .all()
+            
+            # Calculate totals
+            total_amount = 0
+            total_labor_cost = 0
+            products_for_print = []
+            
+            for detail in order_details:
+                subtotal = detail.order_amount * detail.product_sell_price
+                labor_total = detail.order_amount * detail.product_labor_cost
+                
+                product_line = {
+                    "prod_name": detail.prod_name,
+                    "weight": detail.order_weight,
+                    "quantity": detail.order_amount,
+                    "unit_price": detail.product_sell_price,
+                    "labor_cost": detail.product_labor_cost,
+                    "buy_price": detail.product_buy_price,
+                    "subtotal": subtotal,
+                    "labor_total": labor_total
+                }
+                
+                products_for_print.append(product_line)
+                total_amount += subtotal
+                total_labor_cost += labor_total
+            
+            # Format for printing (receipt style)
+            print_data = {
+                "header": {
+                    "title": "ORDER RECEIPT",
+                    "order_id": f"Order #: {order_id}",
+                    "date": order.order_date.strftime("%Y-%m-%d %H:%M:%S") if order.order_date else "",
+                    "print_time": func.now().strftime("%Y-%m-%d %H:%M:%S")
+                },
+                "customer": {
+                    "name": client.cus_name if client else "N/A",
+                    "phone": client.phone_number if client else "N/A",
+                    "address": client.address if client else "N/A"
+                },
+                "items": products_for_print,
+                "totals": {
+                    "subtotal": total_amount,
+                    "total_labor": total_labor_cost,
+                    "grand_total": total_amount + total_labor_cost,
+                    "deposit": order.order_deposit,
+                    "balance_due": (total_amount + total_labor_cost) - order.order_deposit
+                },
+                "footer": {
+                    "thank_you": "Thank you for your business!",
+                    "note": "Please keep this receipt for your records."
+                }
+            }
+            
+            return ResponseModel(
+                code=200,
+                status="Success",
+                message="Order formatted for printing",
+                result=print_data
+            )
+            
+        except Exception as e:
+            return ResponseModel(
+                code=500,
+                status="Error",
+                message=f"Failed to format order for printing: {str(e)}"
+            )
