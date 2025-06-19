@@ -97,3 +97,10 @@ def print_pawn(
 ):
     staff.is_staff(current_user)
     return staff.print_pawn(pawn_id, db)
+
+@router.get("/pawn/print", response_model=ResponseModel)
+def get_pawn_by_id(pawn_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Retrieve all orders or a specific order by ID along with customer details.
+    """
+    return staff.get_pawn_print(db, pawn_id)
