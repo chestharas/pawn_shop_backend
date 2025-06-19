@@ -93,3 +93,28 @@ def get_client_order(
 ):
     staff.is_staff(current_user)
     return staff.get_client_order(db, phone_number, cus_name, cus_id)
+
+@router.get("/order/next-id", response_model=ResponseModel)
+def get_next_order_id(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_next_order_id(db)
+
+@router.get("/order/last", response_model=ResponseModel)
+def get_last_order(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.get_last_order(db)
+
+@router.get("/order/{order_id}/print", response_model=ResponseModel)
+def print_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
+    return staff.print_order(order_id, db)
