@@ -110,11 +110,30 @@ def get_last_order(
     staff.is_staff(current_user)
     return staff.get_last_order(db)
 
-@router.get("/order/{order_id}/print", response_model=ResponseModel)
-def print_order(
-    order_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)
-    return staff.print_order(order_id, db)
+# @router.get("/order/{order_id}/print", response_model=ResponseModel)
+# def print_order(
+#     order_id: int,
+#     db: Session = Depends(get_db),
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     staff.is_staff(current_user)
+#     return staff.print_order(order_id, db)
+
+@router.get("/orders/print", response_model=ResponseModel)
+def get_order_print(order_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """
+    Retrieve order print data by ID
+    """
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Order ID is required")
+    
+    try:
+        # Call your staff.get_order_print function
+        result = staff.get_order_print(db, order_id)
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Order {order_id} not found")
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

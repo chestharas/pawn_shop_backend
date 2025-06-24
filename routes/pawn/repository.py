@@ -614,94 +614,159 @@ class Staff:
                 message=f"Failed to retrieve last pawns: {str(e)}"
             )
 
-    def print_pawn(self, pawn_id: int, db: Session):
-        """Get pawn details formatted for printing (receipt/invoice format)"""
-        try:
-            # Get pawn information
-            pawn = db.query(Pawn).filter(Pawn.pawn_id == pawn_id).first()
-            
-            if not pawn:
-                return ResponseModel(
-                    code=404,
-                    status="Not Found",
-                    message="Pawn not found"
-                )
-            
-            # Get client information
-            client = db.query(Account).filter(
-                and_(
-                    Account.cus_id == pawn.cus_id,
-                    Account.role == 'user'
-                )
-            ).first()
-            
-            # Get pawn details
-            pawn_details = db.query(
+    def get_pawn_print(self, db: Session, pawn_id: Optional[int] = None):
+        """
+        Retrieve all pawn records or a specific pawn by ID along with customer and product details.
+        """
+        
+        def parse_weight(weight_str):
+            """Helper function to extract numeric value from weight string"""
+            if not weight_str:
+                return 0.0
+            # Convert to string if it's not already
+            weight_str = str(weight_str)
+            # Remove common units and extract numeric part
+            import re
+            # Extract number from string (handles formats like "500g", "1.5kg", "250", etc.)
+            match = re.search(r'(\d+\.?\d*)', weight_str)
+            if match:
+                return float(match.group(1))
+            return 0.0
+        
+        # Query to fetch all pawn records (or filter by pawn_id if provided)
+        pawn_query = (
+            db.query(
+                Account.cus_id,
+                Account.cus_name,
+                Account.phone_number,
+                Account.address,
+                Pawn.pawn_id,
+                Pawn.pawn_deposit,
+                Pawn.pawn_date,
+                Pawn.pawn_expire_date,
+                Product.prod_id,
+                Product.prod_name,
                 PawnDetail.pawn_weight,
                 PawnDetail.pawn_amount,
                 PawnDetail.pawn_unit_price,
-                Product.prod_name,
-                Product.prod_id
-            ).join(Product, PawnDetail.prod_id == Product.prod_id)\
-            .filter(PawnDetail.pawn_id == pawn_id)\
-            .all()
+            )
+            .join(Pawn, Account.cus_id == Pawn.cus_id)
+            .join(PawnDetail, Pawn.pawn_id == PawnDetail.pawn_id)
+            .join(Product, PawnDetail.prod_id == Product.prod_id)
+            .filter(Account.role == "user")
+        )
+
+        # If pawn_id is provided, filter the query
+        if pawn_id:
+            pawn_query = pawn_query.filter(Pawn.pawn_id == pawn_id)
+
+        pawns = pawn_query.all()
+
+        # If no pawn records found, return a 404 response
+        if not pawns:
+            return ResponseModel(
+                code=404,
+                status="Error",
+                message=f"No pawn record found for pawn ID {pawn_id}." if pawn_id else "No pawn records found.",
+                result=[]
+            )
+
+        # Structure the response differently based on whether we're fetching a single pawn or all pawns
+        if pawn_id:
+            # Single pawn response - more detailed structure
+            pawn_data = pawns[0]  # Get first row for basic info
             
-            # Calculate totals
-            total_amount = 0
-            products_for_print = []
+            # Calculate totals for the pawn - Fixed weight calculation
+            total_amount = sum(float(pawn[11]) if pawn[11] else 0 for pawn in pawns)  # pawn_amount
+            total_weight = sum(parse_weight(pawn[10]) for pawn in pawns)  # pawn_weight - using helper function
             
-            for detail in pawn_details:
-                subtotal = detail.pawn_amount * detail.pawn_unit_price
-                
-                product_line = {
-                    "prod_name": detail.prod_name,
-                    "weight": detail.pawn_weight,
-                    "quantity": detail.pawn_amount,
-                    "unit_price": detail.pawn_unit_price,
-                    "subtotal": subtotal
-                }
-                
-                products_for_print.append(product_line)
-                total_amount += subtotal
-            
-            # Format for printing (receipt style)
-            print_data = {
-                "header": {
-                    "title": "PAWN RECEIPT",
-                    "pawn_id": f"Pawn #: {pawn_id}",
-                    "date": pawn.pawn_date.strftime("%Y-%m-%d") if pawn.pawn_date else "",
-                    "expire_date": pawn.pawn_expire_date.strftime("%Y-%m-%d") if pawn.pawn_expire_date else "",
-                    "print_time": func.now().strftime("%Y-%m-%d %H:%M:%S")
-                },
+            response_data = {
+                "pawn_id": pawn_data[4],
+                "pawn_deposit": pawn_data[5],
+                "pawn_date": pawn_data[6].strftime("%Y-%m-%d %H:%M:%S"),
+                "pawn_expire_date": pawn_data[7].strftime("%Y-%m-%d %H:%M:%S") if pawn_data[7] else None,
+                "total_amount": total_amount,
+                "total_weight": total_weight,
                 "customer": {
-                    "name": client.cus_name if client else "N/A",
-                    "phone": client.phone_number if client else "N/A",
-                    "address": client.address if client else "N/A"
+                    "cus_id": pawn_data[0],
+                    "customer_name": pawn_data[1],
+                    "phone_number": pawn_data[2],
+                    "address": pawn_data[3]
                 },
-                "items": products_for_print,
-                "totals": {
-                    "subtotal": total_amount,
-                    "grand_total": total_amount,
-                    "deposit": pawn.pawn_deposit,
-                    "balance_due": total_amount - pawn.pawn_deposit
-                },
-                "footer": {
-                    "thank_you": "Thank you for your business!",
-                    "note": "Please keep this receipt for your records.",
-                    "expire_note": f"This pawn expires on: {pawn.pawn_expire_date.strftime('%Y-%m-%d') if pawn.pawn_expire_date else 'N/A'}"
-                }
+                "products": []
             }
+            
+            # Add all products for this pawn
+            for pawn in pawns:
+                response_data["products"].append({
+                    "prod_id": pawn[8],
+                    "prod_name": pawn[9],
+                    "pawn_weight": pawn[10],  # Keep original format for display
+                    "pawn_weight_numeric": parse_weight(pawn[10]),  # Add numeric version
+                    "pawn_amount": pawn[11],
+                    "pawn_unit_price": pawn[12],
+                })
             
             return ResponseModel(
                 code=200,
                 status="Success",
-                message="Pawn formatted for printing",
-                result=print_data
+                message=f"Pawn {pawn_id} retrieved successfully.",
+                result=response_data
             )
+        
+        else:
+            # Multiple pawns response - grouped by customer
+            pawn_list = {}
             
-        except Exception as e:
+            for pawn in pawns:
+                cus_id = pawn[0]
+                pawn_id_current = pawn[4]
+
+                if cus_id not in pawn_list:
+                    pawn_list[cus_id] = {
+                        "cus_id": cus_id,
+                        "customer_name": pawn[1],
+                        "phone_number": pawn[2],
+                        "address": pawn[3],
+                        "pawns": {}
+                    }
+
+                # Group products by pawn_id within each customer
+                if pawn_id_current not in pawn_list[cus_id]["pawns"]:
+                    pawn_list[cus_id]["pawns"][pawn_id_current] = {
+                        "pawn_id": pawn_id_current,
+                        "pawn_deposit": pawn[5],
+                        "pawn_date": pawn[6].strftime("%Y-%m-%d %H:%M:%S"),
+                        "pawn_expire_date": pawn[7].strftime("%Y-%m-%d %H:%M:%S") if pawn[7] else None,
+                        "products": [],
+                        "pawn_total_amount": 0,
+                        "pawn_total_weight": 0
+                    }
+
+                # Add product to the specific pawn
+                product_data = {
+                    "prod_id": pawn[8],
+                    "prod_name": pawn[9],
+                    "pawn_weight": pawn[10],  # Keep original format
+                    "pawn_weight_numeric": parse_weight(pawn[10]),  # Add numeric version
+                    "pawn_amount": pawn[11],
+                    "pawn_unit_price": pawn[12],
+                }
+                
+                pawn_list[cus_id]["pawns"][pawn_id_current]["products"].append(product_data)
+                pawn_list[cus_id]["pawns"][pawn_id_current]["pawn_total_amount"] += float(pawn[11]) if pawn[11] else 0
+                pawn_list[cus_id]["pawns"][pawn_id_current]["pawn_total_weight"] += parse_weight(pawn[10])  # Fixed
+
+            # Convert nested dict structure to list format
+            result = []
+            for customer_data in pawn_list.values():
+                customer_data["pawns"] = list(customer_data["pawns"].values())
+                result.append(customer_data)
+
+            # Return a successful response
             return ResponseModel(
-                code=500,
-                status="Error",
-                message=f"Failed to format pawn for printing: {str(e)}"
+                code=200,
+                status="Success",
+                message=f"Retrieved {len(result)} customers with pawn records.",
+                result=result
             )

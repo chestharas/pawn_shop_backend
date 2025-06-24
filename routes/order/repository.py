@@ -543,101 +543,145 @@ class Staff:
                 message=f"Failed to retrieve last orders: {str(e)}"
             )
 
-    def print_order(self, order_id: int, db: Session):
-        """Get order details formatted for printing (receipt/invoice format)"""
-        try:
-            # Get order information
-            order = db.query(Order).filter(Order.order_id == order_id).first()
-            
-            if not order:
-                return ResponseModel(
-                    code=404,
-                    status="Not Found",
-                    message="Order not found"
-                )
-            
-            # Get client information
-            client = db.query(Account).filter(
-                and_(
-                    Account.cus_id == order.cus_id,
-                    Account.role == 'user'
-                )
-            ).first()
-            
-            # Get order details
-            order_details = db.query(
+    def get_order_print(self, db: Session, order_id: Optional[int] = None):
+        """
+        Retrieve all orders or a specific order by ID along with customer details.
+        """
+        # Base query for fetching order data
+        order_query = (
+            db.query(
+                Account.cus_id,
+                Account.cus_name,
+                Account.phone_number,
+                Account.address,
+                Order.order_id,
+                Order.order_deposit,
+                Order.order_date,
+                Product.prod_id,
+                Product.prod_name,
                 OrderDetail.order_weight,
                 OrderDetail.order_amount,
                 OrderDetail.product_sell_price,
                 OrderDetail.product_labor_cost,
                 OrderDetail.product_buy_price,
-                Product.prod_name,
-                Product.prod_id
-            ).join(Product, OrderDetail.prod_id == Product.prod_id)\
-            .filter(OrderDetail.order_id == order_id)\
-            .all()
+            )
+            .join(Order, Account.cus_id == Order.cus_id)
+            .join(OrderDetail, Order.order_id == OrderDetail.order_id)
+            .join(Product, OrderDetail.prod_id == Product.prod_id)
+            .filter(Account.role == "user")
+        )
+
+        # Filter by specific order_id if provided
+        if order_id:
+            order_query = order_query.filter(Order.order_id == order_id)
+
+        orders = order_query.all()
+
+        # Handle empty results
+        if not orders:
+            return ResponseModel(
+                code=404,
+                status="Error",
+                message=f"No order found with ID {order_id}." if order_id else "No orders found.",
+                result=[]
+            )
+
+        # Structure the response differently based on whether we're fetching a single order or all orders
+        if order_id:
+            # Single order response - more detailed structure
+            order_data = orders[0]  # Get first row for basic info
             
-            # Calculate totals
-            total_amount = 0
-            total_labor_cost = 0
-            products_for_print = []
+            # Calculate totals for the order
+            total_amount = sum(order[10] for order in orders)  # order_amount
+            total_cost = sum((order[12] or 0) + (order[13] or 0) for order in orders)  # labor_cost + buy_price
             
-            for detail in order_details:
-                subtotal = detail.order_amount * detail.product_sell_price
-                labor_total = detail.order_amount * detail.product_labor_cost
-                
-                product_line = {
-                    "prod_name": detail.prod_name,
-                    "weight": detail.order_weight,
-                    "quantity": detail.order_amount,
-                    "unit_price": detail.product_sell_price,
-                    "labor_cost": detail.product_labor_cost,
-                    "buy_price": detail.product_buy_price,
-                    "subtotal": subtotal,
-                    "labor_total": labor_total
-                }
-                
-                products_for_print.append(product_line)
-                total_amount += subtotal
-                total_labor_cost += labor_total
-            
-            # Format for printing (receipt style)
-            print_data = {
-                "header": {
-                    "title": "ORDER RECEIPT",
-                    "order_id": f"Order #: {order_id}",
-                    "date": order.order_date.strftime("%Y-%m-%d %H:%M:%S") if order.order_date else "",
-                    "print_time": func.now().strftime("%Y-%m-%d %H:%M:%S")
-                },
+            response_data = {
+                "order_id": order_data[4],
+                "order_deposit": order_data[5],
+                "order_date": order_data[6].strftime("%Y-%m-%d %H:%M:%S"),
+                "total_amount": total_amount,
+                "total_cost": total_cost,
+                "profit": total_amount - total_cost,
                 "customer": {
-                    "name": client.cus_name if client else "N/A",
-                    "phone": client.phone_number if client else "N/A",
-                    "address": client.address if client else "N/A"
+                    "cus_id": order_data[0],
+                    "customer_name": order_data[1],
+                    "phone_number": order_data[2],
+                    "address": order_data[3]
                 },
-                "items": products_for_print,
-                "totals": {
-                    "subtotal": total_amount,
-                    "total_labor": total_labor_cost,
-                    "grand_total": total_amount + total_labor_cost,
-                    "deposit": order.order_deposit,
-                    "balance_due": (total_amount + total_labor_cost) - order.order_deposit
-                },
-                "footer": {
-                    "thank_you": "Thank you for your business!",
-                    "note": "Please keep this receipt for your records."
-                }
+                "products": []
             }
+            
+            # Add all products for this order
+            for order in orders:
+                response_data["products"].append({
+                    "prod_id": order[7],
+                    "prod_name": order[8],
+                    "order_weight": order[9],
+                    "order_amount": order[10],
+                    "product_sell_price": order[11],
+                    "product_labor_cost": order[12],
+                    "product_buy_price": order[13],
+                    "item_profit": order[10] - ((order[12] or 0) + (order[13] or 0))
+                })
             
             return ResponseModel(
                 code=200,
                 status="Success",
-                message="Order formatted for printing",
-                result=print_data
+                message=f"Order {order_id} retrieved successfully.",
+                result=response_data
             )
+        
+        else:
+            # Multiple orders response - grouped by customer
+            order_list = {}
             
-        except Exception as e:
+            for order in orders:
+                cus_id = order[0]
+                order_id_current = order[4]
+
+                if cus_id not in order_list:
+                    order_list[cus_id] = {
+                        "cus_id": cus_id,
+                        "customer_name": order[1],
+                        "phone_number": order[2],
+                        "address": order[3],
+                        "orders": {}
+                    }
+
+                # Group products by order_id within each customer
+                if order_id_current not in order_list[cus_id]["orders"]:
+                    order_list[cus_id]["orders"][order_id_current] = {
+                        "order_id": order_id_current,
+                        "order_deposit": order[5],
+                        "order_date": order[6].strftime("%Y-%m-%d %H:%M:%S"),
+                        "products": [],
+                        "order_total": 0
+                    }
+
+                # Add product to the specific order
+                product_data = {
+                    "prod_id": order[7],
+                    "prod_name": order[8],
+                    "order_weight": order[9],
+                    "order_amount": order[10],
+                    "product_sell_price": order[11],
+                    "product_labor_cost": order[12],
+                    "product_buy_price": order[13],
+                    "item_profit": order[10] - ((order[12] or 0) + (order[13] or 0))
+                }
+                
+                order_list[cus_id]["orders"][order_id_current]["products"].append(product_data)
+                order_list[cus_id]["orders"][order_id_current]["order_total"] += order[10]
+
+            # Convert nested dict structure to list format
+            result = []
+            for customer_data in order_list.values():
+                customer_data["orders"] = list(customer_data["orders"].values())
+                result.append(customer_data)
+
             return ResponseModel(
-                code=500,
-                status="Error",
-                message=f"Failed to format order for printing: {str(e)}"
+                code=200,
+                status="Success",
+                message=f"Retrieved {len(result)} customers with orders.",
+                result=result
             )
