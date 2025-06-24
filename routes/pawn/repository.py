@@ -618,6 +618,21 @@ class Staff:
         """
         Retrieve all pawn records or a specific pawn by ID along with customer and product details.
         """
+        
+        def parse_weight(weight_str):
+            """Helper function to extract numeric value from weight string"""
+            if not weight_str:
+                return 0.0
+            # Convert to string if it's not already
+            weight_str = str(weight_str)
+            # Remove common units and extract numeric part
+            import re
+            # Extract number from string (handles formats like "500g", "1.5kg", "250", etc.)
+            match = re.search(r'(\d+\.?\d*)', weight_str)
+            if match:
+                return float(match.group(1))
+            return 0.0
+        
         # Query to fetch all pawn records (or filter by pawn_id if provided)
         pawn_query = (
             db.query(
@@ -661,9 +676,9 @@ class Staff:
             # Single pawn response - more detailed structure
             pawn_data = pawns[0]  # Get first row for basic info
             
-            # Calculate totals for the pawn
+            # Calculate totals for the pawn - Fixed weight calculation
             total_amount = sum(float(pawn[11]) if pawn[11] else 0 for pawn in pawns)  # pawn_amount
-            total_weight = sum(float(pawn[10]) if pawn[10] else 0 for pawn in pawns)  # pawn_weight
+            total_weight = sum(parse_weight(pawn[10]) for pawn in pawns)  # pawn_weight - using helper function
             
             response_data = {
                 "pawn_id": pawn_data[4],
@@ -686,7 +701,8 @@ class Staff:
                 response_data["products"].append({
                     "prod_id": pawn[8],
                     "prod_name": pawn[9],
-                    "pawn_weight": pawn[10],
+                    "pawn_weight": pawn[10],  # Keep original format for display
+                    "pawn_weight_numeric": parse_weight(pawn[10]),  # Add numeric version
                     "pawn_amount": pawn[11],
                     "pawn_unit_price": pawn[12],
                 })
@@ -731,14 +747,15 @@ class Staff:
                 product_data = {
                     "prod_id": pawn[8],
                     "prod_name": pawn[9],
-                    "pawn_weight": pawn[10],
+                    "pawn_weight": pawn[10],  # Keep original format
+                    "pawn_weight_numeric": parse_weight(pawn[10]),  # Add numeric version
                     "pawn_amount": pawn[11],
                     "pawn_unit_price": pawn[12],
                 }
                 
                 pawn_list[cus_id]["pawns"][pawn_id_current]["products"].append(product_data)
                 pawn_list[cus_id]["pawns"][pawn_id_current]["pawn_total_amount"] += float(pawn[11]) if pawn[11] else 0
-                pawn_list[cus_id]["pawns"][pawn_id_current]["pawn_total_weight"] += float(pawn[10]) if pawn[10] else 0
+                pawn_list[cus_id]["pawns"][pawn_id_current]["pawn_total_weight"] += parse_weight(pawn[10])  # Fixed
 
             # Convert nested dict structure to list format
             result = []

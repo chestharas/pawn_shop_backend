@@ -89,14 +89,6 @@ def get_last_pawns(
     staff.is_staff(current_user)
     return staff.get_last_pawns(db)
 
-@router.get("/pawn/{pawn_id}/print", response_model=ResponseModel)
-def print_pawn(
-    pawn_id: int,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    staff.is_staff(current_user)
-    return staff.print_pawn(pawn_id, db)
 
 @router.get("/pawn/print", response_model=ResponseModel)
 def get_pawn_by_id(pawn_id: Optional[int] = None, db: Session = Depends(get_db)):
