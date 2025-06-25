@@ -17,27 +17,25 @@ router = APIRouter(
 staff = Staff()
 staff_service = Staff()
 
-""" Update Product """
+""" Product Management """
 @router.post("/product", response_model = ResponseModel)
 def create_product(product_info: CreateProduct, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     staff.is_staff(current_user)
     return staff.create_product(product_info, db, current_user)
 
-""" Get All Product """
 @router.get("/product", response_model=ResponseModel)
 def get_all_product(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     staff.is_staff(current_user)
     return staff.get_product(db=db)
 
-""" Update Existing Product """
 @router.put("/product", response_model=ResponseModel)
 def update_product(
-    updated_product: UpdateProduct,  # Accept JSON as request body
+    updated_product: UpdateProduct, 
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     staff_service = Staff()
-    staff_service.is_staff(current_user)  # Ensure user is staff/admin
+    staff_service.is_staff(current_user)  
 
     return staff_service.update_product(
         db,
@@ -47,7 +45,6 @@ def update_product(
         amount=updated_product.amount
     )
 
-""" Delete Product """
 @router.delete("/product/{product_id}")
 def delete_product_by_id(
     product_id: int, 

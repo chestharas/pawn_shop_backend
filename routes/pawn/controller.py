@@ -34,16 +34,13 @@ def get_pawn_by_id(
     )
 
 @router.post("/pawn", response_model = ResponseModel)
-def create_pawn(pawn_info: CreatePawn, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+def create_pawn(
+    pawn_info: CreatePawn, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
     staff.is_staff(current_user)
     return staff.create_pawn(pawn_info, db, current_user)
-
-# @router.get("/pawn", response_model=ResponseModel)
-# def get_pawn_by_id(cus_id: Optional[int] = None, cus_name: Optional[str] = None, phone_number: Optional[str] = None, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-#     staff.is_staff(current_user)
-#     return staff.get_pawn_detail(db, cus_id, cus_name, phone_number)
-#     # return staff.get_client_pawn(db, cus_id, cus_name, phone_number)
-
 
 @router.get("/pawn/all_client", response_model=ResponseModel)
 def get_all_client_pawn(
@@ -91,8 +88,10 @@ def get_last_pawns(
 
 
 @router.get("/pawn/print", response_model=ResponseModel)
-def get_pawn_by_id(pawn_id: Optional[int] = None, db: Session = Depends(get_db)):
-    """
-    Retrieve all orders or a specific order by ID along with customer details.
-    """
+def get_pawn_by_id(
+    pawn_id: Optional[int] = None, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    staff.is_staff(current_user)
     return staff.get_pawn_print(db, pawn_id)

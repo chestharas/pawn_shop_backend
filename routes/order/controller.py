@@ -15,25 +15,7 @@ router = APIRouter(
 staff = Staff()
 staff_service = Staff()
 
-""" Order and Payment """
-# @router.get("/order/client_phone", response_model=ResponseModel)
-# def get_order_account(
-#     phone_number: str,
-#     db: Session = Depends(get_db),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     staff.is_staff(current_user)  # Ensure only staff can access this
-#     customer_details = staff.get_order_account(db, phone_number)
-
-#     if not customer_details:
-#         raise HTTPException(status_code=404, detail="Customer not found")
-
-#     return ResponseModel(
-#         code=200,
-#         status="Success",
-#         result=customer_details
-#     )
-
+""" Manage Order and Payment """
 @router.post("/order", response_model = ResponseModel)
 def create_order(order_info: CreateOrder, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     staff.is_staff(current_user)
@@ -41,30 +23,11 @@ def create_order(order_info: CreateOrder, db: Session = Depends(get_db), current
 
 @router.get("/order", response_model=ResponseModel)
 def get_client_order(
-    # phone_number: Optional[str] = None,
-    # cus_name: Optional[str] = None,
-    # cus_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     staff.is_staff(current_user)
     return staff.get_client_order(db)
-
-# @router.get("/order", response_model=ResponseModel)
-# def get_client_order(
-#     phone_number: Optional[str] = None,
-#     cus_name: Optional[str] = None,
-#     cus_id: Optional[int] = None,
-#     db: Session = Depends(get_db),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     staff.is_staff(current_user)
-#     return staff.get_client_order(db, phone_number, cus_name, cus_id)
-
-# @router.get("/order", response_model=ResponseModel)
-# def get_client_order_info(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-#     staff.is_staff(current_user)
-#     return staff.get_customers_with_orders(db)
 
 @router.get("/order/all_client", response_model=ResponseModel)
 def get_all_client_order(
@@ -110,20 +73,13 @@ def get_last_order(
     staff.is_staff(current_user)
     return staff.get_last_order(db)
 
-# @router.get("/order/{order_id}/print", response_model=ResponseModel)
-# def print_order(
-#     order_id: int,
-#     db: Session = Depends(get_db),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     staff.is_staff(current_user)
-#     return staff.print_order(order_id, db)
+@router.get("/order/print", response_model=ResponseModel)
+def get_order_print(
+    order_id: Optional[int] = None, 
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)):
 
-@router.get("/orders/print", response_model=ResponseModel)
-def get_order_print(order_id: Optional[int] = None, db: Session = Depends(get_db)):
-    """
-    Retrieve order print data by ID
-    """
+    staff.is_staff(current_user) 
     if not order_id:
         raise HTTPException(status_code=400, detail="Order ID is required")
     
