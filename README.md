@@ -58,25 +58,6 @@ This is a robust backend API for a pawn shop management system built with FastAP
 - **Containerization:** Docker
 - **API Documentation:** Swagger/OpenAPI
 
-## 🏗️ Project Structure
-
-```
-pawn_shop_backend/
-├── routes/
-│   ├── client/         # Client management endpoints
-│   ├── oauth2/         # Authentication endpoints
-│   ├── order/          # Order processing endpoints
-│   ├── pawn/           # Pawn operations endpoints
-│   ├── product/        # Product management endpoints
-│   └── user/           # User management endpoints
-├── database.py         # Database configuration
-├── entities.py         # Database entities
-├── main.py            # Application entry point
-├── response_model.py   # API response models
-├── requirements.txt    # Project dependencies
-└── docker-compose.yaml # Docker configuration
-```
-
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -86,13 +67,23 @@ pawn_shop_backend/
 - pip (Python package manager)
 
 ### Installation
-
-1. Clone the repository:
+1. Create Visual Enviroment
+- For Window
 ```bash
-git clone <repository-url>
-cd pawn_shop_backend
-```
+# Create environment
+python -m venv env
 
+# Activate environment
+env\Scripts\activate
+```
+- For Mac
+```bash
+# Create environment
+python3 -m venv venv
+
+# Activate environment
+source venv/bin/activate
+```
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
@@ -103,12 +94,21 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-### Docker Deployment
+### Docker Deployment (Recommend)
 
-To run the application using Docker:
+For first time setup:
 
 ```bash
-docker-compose up -d
+# 1. Build the Docker image
+docker compose build
+
+# 2. Start the container
+docker compose up
+```
+
+Start the App
+```bash
+docker compose up
 ```
 
 ## 📚 API Documentation
