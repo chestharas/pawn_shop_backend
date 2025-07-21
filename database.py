@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL =  os.getenv("DATABASEURL")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    # Fallback for development - you should set this in your .env file
+    DATABASE_URL = "postgresql://pawnshop:pawnshop123@localhost:5432/pawnshop"
+    print("⚠️  WARNING: DATABASE_URL not set. Using fallback URL. Please set DATABASE_URL in your .env file.")
+
 engine = create_engine( DATABASE_URL, 
                         pool_size=50,  
                         max_overflow=60, 

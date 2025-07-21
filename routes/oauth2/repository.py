@@ -12,7 +12,11 @@ import os
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")  # Default to HS256 if not set
+
+# Validate required environment variables
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is required. Please set it in your .env file.")
 
 http_bearer = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
