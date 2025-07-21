@@ -1,7 +1,7 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +12,9 @@ if not DATABASE_URL:
     # Fallback for development - you should set this in your .env file
     DATABASE_URL = "postgresql://pawnshop:pawnshop123@localhost:5432/pawnshop"
     print("⚠️  WARNING: DATABASE_URL not set. Using fallback URL. Please set DATABASE_URL in your .env file.")
+
+# Add this print statement always, even if DATABASE_URL is set
+print(f"DEBUG: Attempting to connect with DATABASE_URL: '{DATABASE_URL}'") 
 
 engine = create_engine( DATABASE_URL, 
                         pool_size=50,  
