@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     # Fallback for development - you should set this in your .env file
-    DATABASE_URL = "postgresql://pawnshop:pawnshop123@localhost:5432/pawnshop"
+    DATABASE_URL = "postgresql://postgres:Vg1%25%3B%7D%40g%3BN~x~gU%3C@35.225.252.103:5432/postgres"
     print("⚠️  WARNING: DATABASE_URL not set. Using fallback URL. Please set DATABASE_URL in your .env file.")
 
 # Add this print statement always, even if DATABASE_URL is set
